@@ -219,13 +219,14 @@ async def test_websocket(app: Quart) -> None:
     assert cast(bytes, result) == data
 
 
-async def test_websocket(app: Quart) -> None:
+async def test_websocket_cleanup(app: Quart) -> None:
     test_client = app.test_client()
     data = b"bob"
     async with test_client.websocket("/ws/") as test_websocket:
         await test_websocket.send(data)
         result = await test_websocket.receive()
 
+    # WE HANG HERE FOREVER IF after_this_websocket IS NOT CALLED
     await app._BLAH.wait()
     assert app._BLAH.is_set()
 
