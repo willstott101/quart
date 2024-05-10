@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import AsyncGenerator, cast
 
 import pytest
@@ -67,16 +68,22 @@ def app() -> Quart:
 
     @app.websocket("/ws/")
     async def ws() -> None:
+        app._BLAH = asyncio.Event()
         # async for message in websocket:
         @after_this_websocket
         def after(*args, **kwargs):
-            app._BLAH = True
+            app._BLAH.set()
 
         while True:
-            message = await websocket.receive()
-            await websocket.send(message)
-            # IF I UNCOMMENT THIS THEN THE TEST PASSES
-            # break
+            try:
+                message = await websocket.receive()
+                await websocket.send(message)
+                # IF I UNCOMMENT THIS THEN THE TEST PASSES
+                # break
+            except asyncio.CancelledError:
+                # IF I UNCOMMENT THIS THEN THE TEST PASSES
+                # break
+                raise
 
     @app.websocket("/ws/abort/")
     async def ws_abort() -> None:
@@ -219,7 +226,8 @@ async def test_websocket(app: Quart) -> None:
         await test_websocket.send(data)
         result = await test_websocket.receive()
 
-    assert app._BLAH
+    await app._BLAH.wait()
+    assert app._BLAH.is_set()
 
     assert cast(bytes, result) == data
 
